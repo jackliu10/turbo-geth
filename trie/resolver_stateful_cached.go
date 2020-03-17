@@ -266,6 +266,7 @@ func (tr *ResolverStatefulCached) Walker(isAccount bool, blockNr uint64, fromCac
 		tr.curr.Reset()
 	}
 	if len(v) > 0 {
+		trace := bytes.Equal(tr.currentReq.resolveHash, common.FromHex("8894372f37cc47e5b342f1caca60668089cf12c95a7984f1d73d220c325fffa9"))
 		tr.curr.Reset()
 		tr.curr.Write(tr.succ.Bytes())
 		tr.succ.Reset()
@@ -273,13 +274,14 @@ func (tr *ResolverStatefulCached) Walker(isAccount bool, blockNr uint64, fromCac
 		if fromCache && skip > common.HashLength*2 {
 			skip -= 16 // no incarnation in hash bucket
 		}
+		if trace {
+			fmt.Printf("succ prefix: %x\n", kAsNibbles[:skip])
+		}
 		tr.succ.Write(kAsNibbles[skip:])
 
 		if !fromCache {
 			tr.succ.WriteByte(16)
 		}
-
-		trace := bytes.Equal(tr.currentReq.resolveHash, common.FromHex("8894372f37cc47e5b342f1caca60668089cf12c95a7984f1d73d220c325fffa9"))
 
 		if tr.curr.Len() > 0 {
 			var err error
