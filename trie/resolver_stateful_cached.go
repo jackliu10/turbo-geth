@@ -111,14 +111,16 @@ func (tr *ResolverStatefulCached) finaliseRoot() error {
 			tr.accData.Incarnation = tr.a.Incarnation
 			data = &tr.accData
 		}
-		tr.groups, err = GenStructStep(tr.currentRs.HashOnly, tr.curr.Bytes(), tr.succ.Bytes(), tr.hb, data, tr.groups, false)
+		tr.groups, err = GenStructStep(tr.currentRs.HashOnly, tr.curr.Bytes(), tr.succ.Bytes(), tr.hb, data, tr.groups, true)
 		if err != nil {
 			return err
 		}
 	}
+	fmt.Printf("Before hasRoot\n")
 	if tr.hb.hasRoot() {
 		hbRoot := tr.hb.root()
 		hbHash := tr.hb.rootHash()
+		fmt.Printf("Root: %x\n", hbHash)
 		return tr.hookFunction(tr.currentReq, hbRoot, hbHash)
 	}
 	return nil
@@ -222,6 +224,7 @@ func (tr *ResolverStatefulCached) RebuildTrie(
 		return err
 	}
 
+	fmt.Printf("Before finaliseRoot\n")
 	if err = tr.finaliseRoot(); err != nil {
 		fmt.Println("Err in finalize root, writing down resolve params")
 		for _, req := range tr.requests {
@@ -233,6 +236,7 @@ func (tr *ResolverStatefulCached) RebuildTrie(
 		fmt.Printf("startkey: %x\n", startkeys)
 		return fmt.Errorf("error in finaliseRoot, for block %d: %w", blockNr, err)
 	}
+	fmt.Printf("finaliseRoot successful\n")
 	return nil
 }
 
@@ -252,10 +256,13 @@ func (tr *ResolverStatefulCached) Walker(isAccount bool, blockNr uint64, fromCac
 	//	fmt.Printf("Walker Cached: blockNr: %d, keyIdx: %d key:%x  value:%x, fromCache: %v\n", blockNr, keyIdx, buf.B, v, fromCache)
 	//}
 
+	fmt.Printf("Walker %t\n", isAccount)
 	if keyIdx != tr.keyIdx {
+		fmt.Printf("Before finaliseRoot in Walker\n")
 		if err := tr.finaliseRoot(); err != nil {
 			return err
 		}
+		fmt.Printf("finaliseRoot in Walker successful\n")
 		tr.hb.Reset()
 		tr.groups = nil
 		tr.keyIdx = keyIdx
@@ -294,7 +301,7 @@ func (tr *ResolverStatefulCached) Walker(isAccount bool, blockNr uint64, fromCac
 				tr.accData.Incarnation = tr.a.Incarnation
 				data = &tr.accData
 			}
-			tr.groups, err = GenStructStep(tr.currentRs.HashOnly, tr.curr.Bytes(), tr.succ.Bytes(), tr.hb, data, tr.groups, false)
+			tr.groups, err = GenStructStep(tr.currentRs.HashOnly, tr.curr.Bytes(), tr.succ.Bytes(), tr.hb, data, tr.groups, true)
 			if err != nil {
 				return err
 			}
@@ -338,6 +345,7 @@ func (tr *ResolverStatefulCached) Walker(isAccount bool, blockNr uint64, fromCac
 
 // MultiWalk2 - looks similar to db.MultiWalk but works with hardcoded 2-nd bucket IntermediateTrieHashBucket
 func (tr *ResolverStatefulCached) MultiWalk2(db *bolt.DB, blockNr uint64, bucket []byte, startkeys [][]byte, fixedbits []uint, walker func(keyIdx int, blockNr uint64, k []byte, v []byte, fromCache bool) error) error {
+	fmt.Printf("MultiWalk2\n")
 	if len(startkeys) == 0 {
 		return nil
 	}
