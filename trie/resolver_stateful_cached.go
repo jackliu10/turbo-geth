@@ -275,7 +275,7 @@ func (tr *ResolverStatefulCached) Walker(isAccount bool, blockNr uint64, fromCac
 			skip -= 16 // no incarnation in hash bucket
 		}
 		if trace {
-			fmt.Printf("succ prefix: %x, suffix: %x\n", kAsNibbles[:skip], kAsNibbles[skip:])
+			fmt.Printf("succ prefix: %x, suffix: %x, fromCache: %t\n", kAsNibbles[:skip], kAsNibbles[skip:], tr.fromCache)
 		}
 		tr.succ.Write(kAsNibbles[skip:])
 
