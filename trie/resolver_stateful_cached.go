@@ -111,16 +111,15 @@ func (tr *ResolverStatefulCached) finaliseRoot() error {
 			tr.accData.Incarnation = tr.a.Incarnation
 			data = &tr.accData
 		}
-		tr.groups, err = GenStructStep(tr.currentRs.HashOnly, tr.curr.Bytes(), tr.succ.Bytes(), tr.hb, data, tr.groups, true)
+		trace := bytes.Equal(tr.currentReq.resolveHash, common.FromHex("8894372f37cc47e5b342f1caca60668089cf12c95a7984f1d73d220c325fffa9"))
+		tr.groups, err = GenStructStep(tr.currentRs.HashOnly, tr.curr.Bytes(), tr.succ.Bytes(), tr.hb, data, tr.groups, trace)
 		if err != nil {
 			return err
 		}
 	}
-	fmt.Printf("Before hasRoot\n")
 	if tr.hb.hasRoot() {
 		hbRoot := tr.hb.root()
 		hbHash := tr.hb.rootHash()
-		fmt.Printf("Root: %x\n", hbHash)
 		return tr.hookFunction(tr.currentReq, hbRoot, hbHash)
 	}
 	return nil
@@ -224,7 +223,6 @@ func (tr *ResolverStatefulCached) RebuildTrie(
 		return err
 	}
 
-	fmt.Printf("Before finaliseRoot\n")
 	if err = tr.finaliseRoot(); err != nil {
 		fmt.Println("Err in finalize root, writing down resolve params")
 		for _, req := range tr.requests {
@@ -236,7 +234,6 @@ func (tr *ResolverStatefulCached) RebuildTrie(
 		fmt.Printf("startkey: %x\n", startkeys)
 		return fmt.Errorf("error in finaliseRoot, for block %d: %w", blockNr, err)
 	}
-	fmt.Printf("finaliseRoot successful\n")
 	return nil
 }
 
@@ -256,13 +253,10 @@ func (tr *ResolverStatefulCached) Walker(isAccount bool, blockNr uint64, fromCac
 	//	fmt.Printf("Walker Cached: blockNr: %d, keyIdx: %d key:%x  value:%x, fromCache: %v\n", blockNr, keyIdx, buf.B, v, fromCache)
 	//}
 
-	fmt.Printf("Walker %t\n", isAccount)
 	if keyIdx != tr.keyIdx {
-		fmt.Printf("Before finaliseRoot in Walker\n")
 		if err := tr.finaliseRoot(); err != nil {
 			return err
 		}
-		fmt.Printf("finaliseRoot in Walker successful\n")
 		tr.hb.Reset()
 		tr.groups = nil
 		tr.keyIdx = keyIdx
@@ -284,6 +278,8 @@ func (tr *ResolverStatefulCached) Walker(isAccount bool, blockNr uint64, fromCac
 			tr.succ.WriteByte(16)
 		}
 
+		trace := bytes.Equal(tr.currentReq.resolveHash, common.FromHex("8894372f37cc47e5b342f1caca60668089cf12c95a7984f1d73d220c325fffa9"))
+
 		if tr.curr.Len() > 0 {
 			var err error
 			var data GenStructStepData
@@ -301,7 +297,7 @@ func (tr *ResolverStatefulCached) Walker(isAccount bool, blockNr uint64, fromCac
 				tr.accData.Incarnation = tr.a.Incarnation
 				data = &tr.accData
 			}
-			tr.groups, err = GenStructStep(tr.currentRs.HashOnly, tr.curr.Bytes(), tr.succ.Bytes(), tr.hb, data, tr.groups, true)
+			tr.groups, err = GenStructStep(tr.currentRs.HashOnly, tr.curr.Bytes(), tr.succ.Bytes(), tr.hb, data, tr.groups, trace)
 			if err != nil {
 				return err
 			}
