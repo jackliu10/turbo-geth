@@ -344,6 +344,10 @@ func (tr *ResolverStatefulCached) MultiWalk2(db *bolt.DB, blockNr uint64, bucket
 	if len(startkeys) == 0 {
 		return nil
 	}
+	fmt.Printf("Startkeys(%d)\n", len(startkeys))
+	for _, startkey := range startkeys {
+		fmt.Printf("%x\n", startkey)
+	}
 	isAccountBucket := bytes.Equal(bucket, dbutils.AccountsBucket)
 	maxAccountKeyLen := common.HashLength - 1
 
