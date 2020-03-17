@@ -262,6 +262,7 @@ func (tr *ResolverStatefulCached) Walker(isAccount bool, blockNr uint64, fromCac
 		tr.keyIdx = keyIdx
 		tr.currentReq = tr.requests[tr.reqIndices[keyIdx]]
 		tr.currentRs = tr.rss[keyIdx]
+		tr.fromCache = false
 		tr.curr.Reset()
 	}
 	if len(v) > 0 {
