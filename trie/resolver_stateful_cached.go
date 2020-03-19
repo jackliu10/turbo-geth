@@ -111,7 +111,8 @@ func (tr *ResolverStatefulCached) finaliseRoot() error {
 			tr.accData.Incarnation = tr.a.Incarnation
 			data = &tr.accData
 		}
-		trace := bytes.Equal(tr.currentReq.resolveHash, common.FromHex("8894372f37cc47e5b342f1caca60668089cf12c95a7984f1d73d220c325fffa9"))
+		//trace := bytes.Equal(tr.currentReq.resolveHash, common.FromHex("8894372f37cc47e5b342f1caca60668089cf12c95a7984f1d73d220c325fffa9"))
+		trace := tr.currentReq.resolvePos > 0
 		tr.groups, err = GenStructStep(tr.currentRs.HashOnly, tr.curr.Bytes(), tr.succ.Bytes(), tr.hb, data, tr.groups, trace)
 		if err != nil {
 			return err
@@ -264,9 +265,11 @@ func (tr *ResolverStatefulCached) Walker(isAccount bool, blockNr uint64, fromCac
 		tr.currentRs = tr.rss[keyIdx]
 		tr.fromCache = false
 		tr.curr.Reset()
+		tr.succ.Reset()
 	}
+	//trace := bytes.Equal(tr.currentReq.resolveHash, common.FromHex("8894372f37cc47e5b342f1caca60668089cf12c95a7984f1d73d220c325fffa9"))
+	trace := tr.currentReq.resolvePos > 0
 	if len(v) > 0 {
-		trace := bytes.Equal(tr.currentReq.resolveHash, common.FromHex("8894372f37cc47e5b342f1caca60668089cf12c95a7984f1d73d220c325fffa9"))
 		tr.curr.Reset()
 		tr.curr.Write(tr.succ.Bytes())
 		tr.succ.Reset()
@@ -275,7 +278,7 @@ func (tr *ResolverStatefulCached) Walker(isAccount bool, blockNr uint64, fromCac
 			skip -= 16 // no incarnation in hash bucket
 		}
 		if trace {
-			fmt.Printf("succ prefix: %x, suffix: %x, fromCache: %t\n", kAsNibbles[:skip], kAsNibbles[skip:], tr.fromCache)
+			fmt.Printf("tr.keyIdx %d, succ prefix: %x, suffix: %x, fromCache: %t, v: %x\n", tr.keyIdx, kAsNibbles[:skip], kAsNibbles[skip:], tr.fromCache, v)
 		}
 		tr.succ.Write(kAsNibbles[skip:])
 
@@ -338,6 +341,10 @@ func (tr *ResolverStatefulCached) Walker(isAccount bool, blockNr uint64, fromCac
 			tr.value.Write(v)
 			tr.fieldSet = AccountFieldSetNotAccount
 		}
+	} else {
+		if trace {
+			fmt.Printf("succ (v empty) %x, fromCache: %t\n", kAsNibbles, tr.fromCache)
+		}
 	}
 	return nil
 }
@@ -386,15 +393,20 @@ func (tr *ResolverStatefulCached) MultiWalk2(db *bolt.DB, blockNr uint64, bucket
 			// for Address bucket, skip cache keys longer than 31 bytes
 			if isAccountBucket && len(cacheK) > maxAccountKeyLen {
 				next, ok := nextSubtree(cacheK[:maxAccountKeyLen])
+				fmt.Printf("cacheK too long: %x, next: %x\n", cacheK, next)
 				if !ok { // no siblings left in cache
 					cacheK, cacheV = nil, nil
 					continue
 				}
 				cacheK, cacheV = cache.SeekTo(next)
+				fmt.Printf("cacheK is now: %x\n", cacheK)
 				continue
+			} else if len(cacheK) > maxAccountKeyLen {
+				fmt.Printf("cacheK too long (but not acc): %x\n", cacheK)
 			}
 
 			fromCache, minKey = keyIsBefore(cacheK, k)
+			fmt.Printf("cacheK %x, k %x, fromCache %t, minKey %x\n", cacheK, k, fromCache, minKey)
 			if fixedbytes > 0 {
 				// Adjust rangeIdx if needed
 				cmp := int(-1)
@@ -429,6 +441,7 @@ func (tr *ResolverStatefulCached) MultiWalk2(db *bolt.DB, blockNr uint64, bucket
 						if k == nil && cacheK == nil {
 							return nil
 						}
+						fmt.Printf("sneaky cacheK %x, k %x, fromCache %t, minKey %x\n", cacheK, k, fromCache, minKey)
 						fromCache, minKey = keyIsBefore(cacheK, k)
 					} else if cmp > 0 {
 						rangeIdx++
@@ -445,6 +458,7 @@ func (tr *ResolverStatefulCached) MultiWalk2(db *bolt.DB, blockNr uint64, bucket
 				if len(v) > 0 {
 					keyAsNibbles.Reset()
 					DecompressNibbles(minKey, &keyAsNibbles.B)
+					fmt.Printf("=======1\n")
 					if err := walker(rangeIdx, blockNr, keyAsNibbles.B, v, false); err != nil {
 						return err
 					}
@@ -464,6 +478,7 @@ func (tr *ResolverStatefulCached) MultiWalk2(db *bolt.DB, blockNr uint64, bucket
 				if isAccountBucket && len(v) > 0 && bytes.Equal(k, cacheK) {
 					keyAsNibbles.Reset()
 					DecompressNibbles(minKey, &keyAsNibbles.B)
+					fmt.Printf("=======2\n")
 					if err := walker(rangeIdx, blockNr, keyAsNibbles.B, v, false); err != nil {
 						return err
 					}
@@ -486,6 +501,7 @@ func (tr *ResolverStatefulCached) MultiWalk2(db *bolt.DB, blockNr uint64, bucket
 					continue
 				}
 
+				fmt.Printf("=======3 minKey: %x\n", minKey)
 				if err := walker(rangeIdx, blockNr, keyAsNibbles.B, cacheV, fromCache); err != nil {
 					return fmt.Errorf("waker err: %w", err)
 				}
