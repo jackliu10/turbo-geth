@@ -854,18 +854,16 @@ func TestRealScenario1(t *testing.T) {
 	db.Put(dbutils.IntermediateTrieHashBucket, common.FromHex("d5f5fd"), common.FromHex("3ccc5f2a6ba23bfa0f405ce7439eac4037a9f5d6b922b9562e16476f5c144a8e"))
 	{
 		// Resolver with just 1 request
-		resolver := NewResolver(2, true, 0)
+		resolver := NewResolver(0, true, 0)
 		tr := New(common.Hash{})
-		resolver.AddRequest(tr.NewResolveRequest(nil, []byte{}, 0, common.FromHex("8894372f37cc47e5b342f1caca60668089cf12c95a7984f1d73d220c325fffa9")))
 		resolver.AddRequest(tr.NewResolveRequest(nil, common.FromHex("0d050f0503"), 5, common.FromHex("8894372f37cc47e5b342f1caca60668089cf12c95a7984f1d73d220c325fffa9")))
 		err := resolver.ResolveStateful(db, 0)
 		assert.NoError(err)
 	}
 	{
 		// Resolver with just 2 requests
-		resolver := NewResolver(2, true, 0)
+		resolver := NewResolver(0, true, 0)
 		tr := New(common.Hash{})
-		resolver.AddRequest(tr.NewResolveRequest(nil, []byte{}, 0, common.FromHex("c2c50923bc4eaafa0bbe534d9f15b8c17193852c055ebf0d84a413ca1aa15459")))
 		resolver.AddRequest(tr.NewResolveRequest(nil, common.FromHex("0d050f0500"), 5, common.FromHex("c2c50923bc4eaafa0bbe534d9f15b8c17193852c055ebf0d84a413ca1aa15459")))
 		resolver.AddRequest(tr.NewResolveRequest(nil, common.FromHex("0d050f0503"), 5, common.FromHex("8894372f37cc47e5b342f1caca60668089cf12c95a7984f1d73d220c325fffa9")))
 		err := resolver.ResolveStatefulCached(db, 0)

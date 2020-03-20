@@ -125,7 +125,7 @@ func DecodeIncarnation(buf []byte) uint64 {
 }
 
 func RemoveIncarnationFromKey(storageKey []byte) []byte {
-	if len(storageKey) < common.HashLength {
+	if len(storageKey) <= common.HashLength {
 		return storageKey
 	}
 	buf := make([]byte, 0, common.HashLength*2)
