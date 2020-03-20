@@ -381,7 +381,7 @@ func (tr *ResolverStatefulCached) MultiWalk2(db *bolt.DB, blockNr uint64, bucket
 		c := b.Cursor()
 
 		k, v := c.Seek(startkey)
-		cacheK, cacheV := cache.Seek(startkey)
+		cacheK, cacheV := cache.Seek(dbutils.RemoveIncarnationFromKey(startkey))
 
 		var minKey []byte
 		var fromCache bool
@@ -437,7 +437,7 @@ func (tr *ResolverStatefulCached) MultiWalk2(db *bolt.DB, blockNr uint64, bucket
 					}
 					if cmp < 0 {
 						k, v = c.SeekTo(startkey)
-						cacheK, cacheV = cache.SeekTo(startkey)
+						cacheK, cacheV = cache.SeekTo(dbutils.RemoveIncarnationFromKey(startkey))
 						if k == nil && cacheK == nil {
 							return nil
 						}
@@ -517,7 +517,15 @@ func (tr *ResolverStatefulCached) MultiWalk2(db *bolt.DB, blockNr uint64, bucket
 				cacheK, cacheV = nil, nil
 				continue
 			}
-			k, v = c.Seek(next)
+
+			if isAccountBucket {
+				k, v = c.Seek(next)
+			} else {
+				// skip subtree - can't .Seek because storage bucket has incarnation in keys
+				for k, v = c.Next(); bytes.HasPrefix(dbutils.RemoveIncarnationFromKey(k), cacheK); k, v = c.Next() {
+				}
+			}
+
 			cacheK, cacheV = cache.Seek(next)
 		}
 		return nil

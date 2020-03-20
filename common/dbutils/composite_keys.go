@@ -119,6 +119,21 @@ func GenerateStoragePrefix(addressHash common.Hash, incarnation uint64) []byte {
 	return prefix
 }
 
+func DecodeIncarnation(buf []byte) uint64 {
+	incarnation := binary.BigEndian.Uint64(buf)
+	return incarnation ^ ^uint64(0)
+}
+
+func RemoveIncarnationFromKey(storageKey []byte) []byte {
+	if len(storageKey) < common.HashLength {
+		return storageKey
+	}
+	buf := make([]byte, 0, common.HashLength*2)
+	buf = append(buf, storageKey[:common.HashLength]...)
+	buf = append(buf, storageKey[common.HashLength+8:]...)
+	return buf
+}
+
 // Key + blockNum
 func CompositeKeySuffix(key []byte, timestamp uint64) (composite, encodedTS []byte) {
 	encodedTS = EncodeTimestamp(timestamp)
