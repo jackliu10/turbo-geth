@@ -44,32 +44,25 @@ func findStorageTombstoneByPrefix(prefixS string, remoteDB ethdb.KV) ([]*Storage
 	var results []*StorageTombsResponse
 	prefix := common.FromHex(prefixS)
 	if err := remoteDB.View(context.TODO(), func(tx ethdb.Tx) error {
-		interBucket := tx.Bucket(dbutils.IntermediateTrieHashBucket)
-		c := interBucket.Cursor()
-		cOverlap := interBucket.Cursor().Prefetch(1)
-		storage := tx.Bucket(dbutils.StorageBucket).Cursor().Prefetch(1)
+		c := tx.Bucket(dbutils.IntermediateTrieHashBucket).Cursor().Prefix(prefix).NoValues()
+		storage := tx.Bucket(dbutils.StorageBucket).Cursor().Prefetch(1).NoValues()
 
-		for k, v, err := c.Seek(prefix); k != nil || err != nil; k, v, err = c.Next() {
+		for k, vSize, err := c.First(); k != nil || err != nil; k, vSize, err = c.Next() {
 			if err != nil {
 				return err
 			}
-			if !bytes.HasPrefix(k, prefix) {
-				return nil
-			}
 
-			if len(v) > 0 {
+			if vSize > 0 {
 				continue
 			}
 
 			// 1 prefix must be covered only by 1 tombstone
 			overlap := false
-			from := append(k, []byte{0, 0}...)
-			for overlapK, v, err := cOverlap.Seek(from); overlapK != nil || err != nil; overlapK, v, err = cOverlap.Next() {
+			pref := append(k, []byte{0, 0}...)
+			c2 := tx.Bucket(dbutils.IntermediateTrieHashBucket).Cursor().Prefix(pref).Prefetch(10)
+			for overlapK, v, err := c2.First(); overlapK != nil || err != nil; overlapK, v, err = c2.Next() {
 				if err != nil {
 					return err
-				}
-				if !bytes.HasPrefix(overlapK, from) {
-					overlapK = nil
 				}
 				if len(v) > 0 {
 					continue
