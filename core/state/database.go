@@ -272,7 +272,7 @@ func ClearTombstonesForReCreatedAccount(db ethdb.MinDatabase, addrHash common.Ha
 	}
 
 	var boltDb *bolt.DB
-	if hasBolt, ok := db.(ethdb.KV); ok {
+	if hasBolt, ok := db.(ethdb.HasKV); ok {
 		boltDb = hasBolt.KV()
 	} else {
 		return fmt.Errorf("only Bolt supported yet, given: %T", db)
@@ -333,7 +333,7 @@ func PutTombstoneForDeletedAccount(db ethdb.MinDatabase, addrHash []byte) error 
 	}
 
 	var boltDb *bolt.DB
-	if hasKV, ok := db.(ethdb.KV); ok {
+	if hasKV, ok := db.(ethdb.HasKV); ok {
 		boltDb = hasKV.KV()
 	} else {
 		return fmt.Errorf("only Bolt supported yet, given: %T", db)
@@ -391,7 +391,7 @@ func PutTombstoneForDeletedAccount(db ethdb.MinDatabase, addrHash []byte) error 
 	})
 }
 
-func ClearTombstonesForNewStorage(db ethdb.KV, storageKeyNoInc []byte) error {
+func ClearTombstonesForNewStorage(db ethdb.HasKV, storageKeyNoInc []byte) error {
 	addrHashBytes := common.CopyBytes(storageKeyNoInc[:common.HashLength])
 	if err := db.KV().Update(func(tx *bolt.Tx) error {
 		if debug.IntermediateTrieHashAssertDbIntegrity {
@@ -943,7 +943,7 @@ func (tds *TrieDbState) updateTrieRoots(forward bool) ([]common.Hash, error) {
 					if forward {
 
 						if debug.IsIntermediateTrieHash() {
-							_ = ClearTombstonesForNewStorage(tds.db.(ethdb.KV), cKey)
+							_ = ClearTombstonesForNewStorage(tds.db.(ethdb.HasKV), cKey)
 						}
 
 						tds.t.Update(cKey, v)

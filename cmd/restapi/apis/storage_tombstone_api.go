@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
-	"github.com/ledgerwatch/turbo-geth/ethdb/remote"
+	"github.com/ledgerwatch/turbo-geth/ethdb"
 )
 
 func RegisterStorageTombstonesAPI(router *gin.RouterGroup, e *Env) error {
@@ -40,16 +40,16 @@ type StorageTombsResponse struct {
 	HideStorage          bool   `json:"hideStorage"`
 }
 
-func findStorageTombstoneByPrefix(prefixS string, remoteDB *remote.DB) ([]*StorageTombsResponse, error) {
+func findStorageTombstoneByPrefix(prefixS string, remoteDB ethdb.KV) ([]*StorageTombsResponse, error) {
 	var results []*StorageTombsResponse
 	prefix := common.FromHex(prefixS)
-	if err := remoteDB.View(context.TODO(), func(tx *remote.Tx) error {
+	if err := remoteDB.View(context.TODO(), func(tx ethdb.Tx) error {
 		interBucket := tx.Bucket(dbutils.IntermediateTrieHashBucket)
-		c := interBucket.Cursor(remote.DefaultCursorOpts.PrefetchValues(true))
-		cOverlap := interBucket.Cursor(remote.DefaultCursorOpts.PrefetchValues(false).PrefetchSize(1))
-		storage := tx.Bucket(dbutils.StorageBucket).Cursor(remote.DefaultCursorOpts.PrefetchValues(false).PrefetchSize(1))
+		c := interBucket.Cursor()
+		cOverlap := interBucket.Cursor().Prefetch(1)
+		storage := tx.Bucket(dbutils.StorageBucket).Cursor().Prefetch(1)
 
-		for k, v, err := c.Seek(prefix); k != nil; k, v, err = c.Next() {
+		for k, v, err := c.Seek(prefix); k != nil || err != nil; k, v, err = c.Next() {
 			if err != nil {
 				return err
 			}
@@ -64,7 +64,7 @@ func findStorageTombstoneByPrefix(prefixS string, remoteDB *remote.DB) ([]*Stora
 			// 1 prefix must be covered only by 1 tombstone
 			overlap := false
 			from := append(k, []byte{0, 0}...)
-			for overlapK, v, err := cOverlap.Seek(from); overlapK != nil; overlapK, v, err = cOverlap.Next() {
+			for overlapK, v, err := cOverlap.Seek(from); overlapK != nil || err != nil; overlapK, v, err = cOverlap.Next() {
 				if err != nil {
 					return err
 				}
@@ -136,9 +136,9 @@ type IntegrityCheck struct {
 	Value string `json:"value"`
 }
 
-func storageTombstonesIntegrityDBCheck(remoteDB *remote.DB) ([]*IntegrityCheck, error) {
+func storageTombstonesIntegrityDBCheck(remoteDB ethdb.KV) ([]*IntegrityCheck, error) {
 	var results []*IntegrityCheck
-	return results, remoteDB.View(context.TODO(), func(tx *remote.Tx) error {
+	return results, remoteDB.View(context.TODO(), func(tx ethdb.Tx) error {
 		res, err := storageTombstonesIntegrityDBCheckTx(tx)
 		if err != nil {
 			return err
@@ -148,7 +148,7 @@ func storageTombstonesIntegrityDBCheck(remoteDB *remote.DB) ([]*IntegrityCheck, 
 	})
 }
 
-func storageTombstonesIntegrityDBCheckTx(tx *remote.Tx) ([]*IntegrityCheck, error) {
+func storageTombstonesIntegrityDBCheckTx(tx ethdb.Tx) ([]*IntegrityCheck, error) {
 	var res []*IntegrityCheck
 	var check1 = &IntegrityCheck{
 		Name:  "1 trie prefix must be covered only by 1 tombstone",
@@ -161,11 +161,11 @@ func storageTombstonesIntegrityDBCheckTx(tx *remote.Tx) ([]*IntegrityCheck, erro
 	}
 	res = append(res, check2)
 
-	inter := tx.Bucket(dbutils.IntermediateTrieHashBucket).Cursor(remote.DefaultCursorOpts.PrefetchValues(true).PrefetchSize(1000))
-	cOverlap := tx.Bucket(dbutils.IntermediateTrieHashBucket).Cursor(remote.DefaultCursorOpts.PrefetchValues(true).PrefetchSize(10))
-	storage := tx.Bucket(dbutils.StorageBucket).Cursor(remote.DefaultCursorOpts.PrefetchValues(false).PrefetchSize(10))
+	inter := tx.Bucket(dbutils.IntermediateTrieHashBucket).Cursor().Prefetch(1000)
+	cOverlap := tx.Bucket(dbutils.IntermediateTrieHashBucket).Cursor().Prefetch(10)
+	storage := tx.Bucket(dbutils.StorageBucket).Cursor().Prefetch(10)
 
-	for k, v, err := inter.First(); k != nil; k, v, err = inter.Next() {
+	for k, v, err := inter.First(); k != nil || err != nil; k, v, err = inter.Next() {
 		if err != nil {
 			return nil, err
 		}
@@ -175,7 +175,7 @@ func storageTombstonesIntegrityDBCheckTx(tx *remote.Tx) ([]*IntegrityCheck, erro
 
 		// 1 prefix must be covered only by 1 tombstone
 		from := append(k, []byte{0, 0}...)
-		for overlapK, overlapV, err := cOverlap.Seek(from); overlapK != nil; overlapK, overlapV, err = cOverlap.Next() {
+		for overlapK, overlapV, err := cOverlap.Seek(from); overlapK != nil || err != nil; overlapK, overlapV, err = cOverlap.Next() {
 			if err != nil {
 				return nil, err
 			}
