@@ -1348,6 +1348,7 @@ func (pm *ProtocolManager) handleMgrMsg(p *mgrPeer) error {
 		if err != nil {
 			panic(err)
 		}
+		fmt.Printf("Received MGRStatus. len(knownPrefixes)=%d\n", len(knownPrefixes))
 
 		for _, prefix := range knownPrefixes {
 			witness, err := tds.ExtractWitnessForPrefix(prefix, false, false)
@@ -1359,6 +1360,7 @@ func (pm *ProtocolManager) handleMgrMsg(p *mgrPeer) error {
 			if err != nil {
 				panic(err)
 			}
+			fmt.Printf("Sernding MGRWitness\n")
 			err = p2p.Send(p.rw, MGRWitness, buf.Bytes())
 			if err != nil {
 				panic(err)
